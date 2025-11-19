@@ -116,19 +116,20 @@ function convertShortcutsFromRust(
   const shortcuts: Record<string, ShortcutEntry> = {};
 
   for (const [key, value] of Object.entries(rustShortcuts)) {
+    const val = value as any;
     shortcuts[key] = {
-      key: value.key,
-      title: value.title,
-      description: value.description,
-      category: value.category,
+      key: val.key,
+      title: val.title,
+      description: val.description,
+      category: val.category,
       defaultShortcut: {
-        mac: value.default_shortcut.mac,
-        windows: value.default_shortcut.windows,
+        mac: val.default_shortcut.mac,
+        windows: val.default_shortcut.windows,
       },
-      customShortcut: value.custom_shortcut
+      customShortcut: val.custom_shortcut
         ? {
-            mac: value.custom_shortcut.mac,
-            windows: value.custom_shortcut.windows,
+            mac: val.custom_shortcut.mac,
+            windows: val.custom_shortcut.windows,
           }
         : undefined,
     };

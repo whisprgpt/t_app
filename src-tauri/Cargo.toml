@@ -1,5 +1,5 @@
 # Cargo.toml
-# This is like your package.json - it defines dependencies and project metadata
+# FIXED: Using "global-shortcut" instead of "global-shortcut-all"
 
 [package]
 name = "whisprgpt"
@@ -10,48 +10,25 @@ license = ""
 repository = ""
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
 # ============================================================================
-# Tauri - The core framework (like Electron)
+# Tauri - The core framework
 # ============================================================================
-tauri = { version = "1.5", features = [ "protocol-asset",
-    "shell-open",           # Open URLs externally (like shell.openExternal)
+tauri = { version = "1.5", features = [
+    "shell-open",
     "window-all",
-    "dialog-all",           # Native dialogs (like Electron's dialog)
-    "fs-all",               # File system access
-    "path-all",       # Load local files
+    "dialog-all",
+    "fs-all",
+    "path-all",
+    "protocol-asset",
+    "global-shortcut",  # ← CORRECT: Just "global-shortcut" (not "global-shortcut-all")
 ] }
 
 # ============================================================================
-# Serde - JSON serialization/deserialization (like JSON.parse/stringify)
+# Serde - JSON serialization/deserialization
 # ============================================================================
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-
-# ============================================================================
-# EXPLANATION FOR JAVASCRIPT DEVELOPERS:
-# ============================================================================
-# 
-# Cargo.toml is like package.json:
-# - [package] section = name, version, description
-# - [dependencies] section = dependencies object
-# - Features are like optional peer dependencies
-#
-# Version numbers work like npm:
-# - "1.5" means ">=1.5.0, <2.0.0" (like "^1.5.0" in npm)
-# - "1.5.0" means exactly that version (like "1.5.0" in npm)
-#
-# To add a dependency later:
-# 1. Add it to [dependencies]
-# 2. Run: cargo build (like npm install)
-#
-# Common commands:
-# - cargo build     = npm install + compile
-# - cargo run       = npm start (for desktop app)
-# - cargo test      = npm test
-# - cargo update    = npm update
