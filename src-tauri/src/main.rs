@@ -1,5 +1,5 @@
 // main.rs
-// UPDATED: Global hotkeys for window movement and hide/show
+// UPDATED: Added deep linking support and auth commands
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -19,6 +19,11 @@ fn main() {
             commands::settings::get_settings_command,
             commands::settings::save_settings_command,
             commands::settings::reset_settings_command,
+            // Shortcut commands
+            commands::shortcuts::register_shortcuts_command,
+            commands::shortcuts::unregister_shortcuts_command,
+            commands::shortcuts::update_shortcut_command,
+            commands::shortcuts::reset_shortcut_command,
             // Window management commands
             commands::window::close_app_command,
             commands::window::restart_app_command,
@@ -32,18 +37,58 @@ fn main() {
             commands::window::delete_cache_command,
             commands::window::set_window_size_command,
             commands::window::set_window_focusable_command,
+            // ✨ NEW: Auth commands
+            commands::auth::open_external_url,
+            commands::auth::open_checkout_portal,
         ])
         .setup(|app| {
             println!("WhisprGPT is starting...");
 
+            // ============================================================
+            // SETUP DEEP LINKING FOR OAUTH CALLBACK
+            // ============================================================
+            // Register custom protocol handler for whisprgpt://
+            // This handles OAuth callbacks from Google
+
+            let app_handle = app.handle();
+
+            // Listen for deep link events
+            #[cfg(target_os = "windows")]
+            {
+                // On Windows, we need to handle command line arguments
+                // because deep links come through as arguments to the app
+                let args: Vec<String> = std::env::args().collect();
+                println!("App started with args: {:?}", args);
+
+                // Check if any arg starts with "whisprgpt://"
+                for arg in args.iter() {
+                    if arg.starts_with("whisprgpt://callback") {
+                        println!("🔗 Deep link detected: {}", arg);
+                        handle_deep_link(&app_handle, arg.to_string());
+                    }
+                }
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+                // On macOS, we use the standard URL event handler
+                use tauri::Manager;
+                app.listen_global("deep-link", move |event| {
+                    if let Some(payload) = event.payload() {
+                        println!("🔗 Deep link detected: {}", payload);
+                        handle_deep_link(&app_handle, payload.to_string());
+                    }
+                });
+            }
+
+            // ============================================================
+            // REGISTER GLOBAL HOTKEYS (existing code)
+            // ============================================================
             if let Some(window) = app.get_window("main") {
                 // Set always on top by default
                 let _ = window.set_always_on_top(true);
                 println!("Main window initialized with always-on-top");
 
-                // ============================================================
-                // REGISTER GLOBAL HOTKEYS
-                // ============================================================
                 let mut shortcut_manager = app.global_shortcut_manager();
 
                 // Clone window for each closure
@@ -134,12 +179,66 @@ fn main() {
 }
 
 // ============================================================================
-// HOTKEY SUMMARY:
+// DEEP LINK HANDLER
 // ============================================================================
-// Ctrl + Up Arrow    - Move window up by 20px
-// Ctrl + Down Arrow  - Move window down by 20px
-// Ctrl + Left Arrow  - Move window left by 20px
-// Ctrl + Right Arrow - Move window right by 20px
-// Ctrl + H           - Toggle hide/show window
+fn handle_deep_link(app_handle: &tauri::AppHandle, url: String) {
+    println!("📥 Processing deep link: {}", url);
+
+    // Parse the URL to extract the auth code
+    // Format: whisprgpt://callback?code=XXXXX
+    if let Some(code) = extract_code_from_url(&url) {
+        println!("✅ Extracted auth code: {}", code);
+
+        // Get the main window
+        if let Some(window) = app_handle.get_window("main") {
+            // Call the auth handler to emit event to frontend
+            if let Err(e) = commands::auth::handle_auth_callback(&window, code) {
+                eprintln!("❌ Failed to handle auth callback: {}", e);
+            }
+        } else {
+            eprintln!("❌ Main window not found");
+        }
+    } else {
+        eprintln!("❌ Failed to extract code from URL: {}", url);
+    }
+}
+
+// ============================================================================
+// EXTRACT CODE FROM URL
+// ============================================================================
+fn extract_code_from_url(url: &str) -> Option<String> {
+    // Parse URL: whisprgpt://callback?code=XXXXX
+    let parts: Vec<&str> = url.split('?').collect();
+    if parts.len() < 2 {
+        return None;
+    }
+
+    // Parse query parameters
+    let query = parts[1];
+    for param in query.split('&') {
+        let kv: Vec<&str> = param.split('=').collect();
+        if kv.len() == 2 && kv[0] == "code" {
+            return Some(kv[1].to_string());
+        }
+    }
+
+    None
+}
+
+// ============================================================================
+// NOTES FOR DEPLOYMENT:
+// ============================================================================
 //
-// These hotkeys work system-wide (even when window is not focused)!
+// For Windows:
+// 1. Deep linking requires installer (doesn't work in dev mode)
+// 2. URL scheme is registered during installation
+// 3. Test with: `npm run tauri build` → install .exe → test OAuth
+//
+// For macOS:
+// 1. Add to Info.plist (Tauri handles this automatically)
+// 2. URL scheme: whisprgpt://
+// 3. Works in both dev and production
+//
+// For Linux:
+// 1. Create .desktop file with MimeType=x-scheme-handler/whisprgpt
+// 2. Register with xdg-mime

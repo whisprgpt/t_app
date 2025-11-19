@@ -4,7 +4,8 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "devPath": "http://localhost:1420",
-    "distDir": "../dist"
+    "distDir": "../dist",
+    "withGlobalTauri": true
   },
   "package": {
     "productName": "WhisprGPT",
@@ -59,7 +60,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.electron.whisprgpt",
+      "identifier": "com.whisprgpt.app",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -74,11 +75,26 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        },
+        "wix": {
+          "template": null,
+          "fragmentPaths": [],
+          "componentRefs": []
+        }
       }
     },
     "security": {
-      "csp": null
+      "csp": null,
+      "dangerousRemoteDomainIpcAccess": [
+        {
+          "domain": "*.supabase.co",
+          "windows": ["main"],
+          "enableTauriAPI": false
+        }
+      ]
     },
     "updater": {
       "active": false
@@ -96,7 +112,8 @@
         "skipTaskbar": true,
         "visible": true,
         "center": false,
-        "y": 50
+        "y": 50,
+        "label": "main"
       }
     ]
   }
