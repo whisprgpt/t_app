@@ -1,4 +1,4 @@
-import { SubjectPromptMap } from "@/types/ui";
+import { SubjectPromptMap } from "@/types/types";
 
 // typed, no `any`, works as a template tag
 function dedent(

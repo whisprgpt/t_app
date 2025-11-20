@@ -3,7 +3,7 @@
 
 import { useState, useRef } from "react";
 import { supabase } from "../lib/supabase/client";
-import { SubscribePageProps } from "@/types/ui";
+import { SubscribePageProps } from "@/types/types";
 import { openCheckoutPortal } from "../lib/tauri-auth-api";
 import { motion } from "framer-motion";
 

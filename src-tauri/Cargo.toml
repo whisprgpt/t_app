@@ -1,22 +1,14 @@
-# Cargo.toml
-# FIXED: Using "global-shortcut" instead of "global-shortcut-all"
-
 [package]
 name = "whisprgpt"
 version = "2.1.1"
 description = "WhisprGPT - Your AI Digital Assistant"
 authors = ["WhisprGPT LLC"]
-license = ""
-repository = ""
 edition = "2021"
 
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-# ============================================================================
-# Tauri - The core framework
-# ============================================================================
 tauri = { version = "1.5", features = [
     "shell-open",
     "window-all",
@@ -24,11 +16,14 @@ tauri = { version = "1.5", features = [
     "fs-all",
     "path-all",
     "protocol-asset",
-    "global-shortcut",  # ← CORRECT: Just "global-shortcut" (not "global-shortcut-all")
+    "global-shortcut",
 ] }
-
-# ============================================================================
-# Serde - JSON serialization/deserialization
-# ============================================================================
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+[features]
+# Tauri CLI assumes this exists and will do: --features custom-protocol
+default = ["custom-protocol"]
+
+# This feature name is on *your* crate; it enables the appropriate tauri feature.
+custom-protocol = ["tauri/custom-protocol", "tauri/protocol-asset"]
