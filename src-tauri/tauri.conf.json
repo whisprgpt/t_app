@@ -87,12 +87,12 @@
       }
     },
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; connect-src 'self' blob: https://orwfosrcglmuykemljin.supabase.co ws://orwfosrcglmuykemljin.supabase.co wss://orwfosrcglmuykemljin.supabase.co; img-src 'self' blob: data: https:; media-src 'self' blob:; frame-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; font-src 'self' data:; object-src 'none'; base-uri 'self';",
       "dangerousRemoteDomainIpcAccess": [
         {
           "domain": "*.supabase.co",
           "windows": ["main"],
-          "enableTauriAPI": false
+          "enableTauriAPI": true
         }
       ]
     },
@@ -113,8 +113,21 @@
         "visible": true,
         "center": false,
         "y": 50,
-        "label": "main"
+        "label": "main",
+        "url": "index.html"
       }
-    ]
+    ],
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [],
+      "desktop": {
+        "schemes": ["whisprgpt", ""]
+      }
+    }
   }
 }
