@@ -45,7 +45,7 @@ export default function SettingsPage() {
   function currentShortcutFor(key: string): string {
     if (!settings) return "";
     const entry = settings.shortcuts[key];
-    if (!entry) return "";
+    if (!entry || !entry.defaultShortcut) return ""; // ← Add null check
     return (
       (entry.customShortcut?.[platform] ?? entry.defaultShortcut[platform]) ||
       ""

@@ -1,10 +1,10 @@
 // src/App.tsx
-// UPDATED: Migrated from Electron to Tauri auth
+// FIXED: Added Whispr mode event listeners
 
-import { Routes, Route, HashRouter } from "react-router-dom";
+import { Routes, Route, HashRouter, useNavigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import SettingsPage from "./pages/Settings";
-import SignInForm from "./pages/Authentication";
+// import SignInForm from "./pages/Authentication";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase/client.ts";
@@ -13,8 +13,11 @@ import { StripeSubscription } from "@/types/types";
 import ShortcutsPage from "./pages/Shortcuts";
 import NotesPage from "./pages/Notes";
 import { listenForAuthCallback } from "./lib/tauri-auth-api";
+import { whisprApi } from "./lib/tauri-whispr-api";
 
-export default function App() {
+// Separate component to use useNavigate hook
+function AppContent() {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [subscription, setSubscription] = useState<StripeSubscription | null>(
     null
@@ -25,18 +28,18 @@ export default function App() {
   const fetchUserAndSubscription = async () => {
     setLoading(true);
 
-    // Get the current session
     const {
       data: { session },
     } = await supabase.auth.getSession();
+
     if (!session) {
       setUser(null);
       setLoading(false);
       return { user: null, subscription: null };
     }
+
     setUser(session.user);
 
-    // Fetch all subscriptions for the user, ordered by created_at descending
     const { data: subscriptionData, error } = await supabase
       .from("stripe_subscriptions")
       .select("*")
@@ -49,19 +52,16 @@ export default function App() {
       return { user: session.user, subscription: null };
     }
 
-    // Find an active subscription if one exists
     const activeSubscription = subscriptionData?.find(
       (sub) => sub.status === "active"
     );
 
-    // If there is no active subscription, fallback to the most recent one
     const subscriptionToUse =
       activeSubscription ||
       (subscriptionData && subscriptionData.length > 0
         ? subscriptionData[0]
         : null);
 
-    // Map the record to your StripeSubscription type
     const subscription: StripeSubscription | null = subscriptionToUse
       ? {
           id: subscriptionToUse.id,
@@ -74,12 +74,10 @@ export default function App() {
     return { user: session.user, subscription };
   };
 
-  // Set up a real-time subscription for subscription changes
+  // Real-time subscription updates
   useEffect(() => {
-    // Only subscribe if we have a logged-in user
     if (!user) return;
 
-    // Subscribe to all events (INSERT, UPDATE, DELETE) for the user's subscription row
     const subscriptionChannel = supabase
       .channel("subscription-channel")
       .on(
@@ -92,20 +90,62 @@ export default function App() {
         },
         (payload) => {
           console.log("Real-time subscription update:", payload);
-          // For simplicity, re-fetch the subscription data on any change.
           fetchUserAndSubscription();
         }
       )
       .subscribe();
 
-    // Cleanup the real-time channel on unmount or when user changes
     return () => {
       supabase.removeChannel(subscriptionChannel);
     };
   }, [user]);
 
   // ============================================================================
-  // ✨ UPDATED: Auth callback for Tauri (replaces Electron IPC)
+  // ✨ NEW: Listen for Whispr mode events
+  // ============================================================================
+  useEffect(() => {
+    let unsubLaunch: (() => void) | null = null;
+    let unsubDashboard: (() => void) | null = null;
+
+    console.log("🎧 Setting up Whispr mode event listeners...");
+
+    // Listen for Whispr mode launch
+    whisprApi
+      .onLaunchWhisprMode(({ url }) => {
+        console.log("🚀 Whispr mode launch event received:", url);
+        navigate("/whispr", { state: { url } });
+      })
+      .then((unsub) => {
+        unsubLaunch = unsub;
+        console.log("✅ Whispr launch listener ready");
+      })
+      .catch((err) => {
+        console.error("❌ Failed to set up Whispr launch listener:", err);
+      });
+
+    // Listen for dashboard navigation (Ctrl+B)
+    whisprApi
+      .onNavigateToDashboard(() => {
+        console.log("🏠 Dashboard navigation event received");
+        navigate("/");
+      })
+      .then((unsub) => {
+        unsubDashboard = unsub;
+        console.log("✅ Dashboard navigation listener ready");
+      })
+      .catch((err) => {
+        console.error("❌ Failed to set up dashboard listener:", err);
+      });
+
+    return () => {
+      console.log("🧹 Cleaning up Whispr mode listeners");
+      if (unsubLaunch) unsubLaunch();
+      if (unsubDashboard) unsubDashboard();
+    };
+  }, [navigate]);
+
+  // ============================================================================
+  // Auth callback listener
   // ============================================================================
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -114,7 +154,6 @@ export default function App() {
       console.log("🔐 Setting up Tauri auth listener...");
 
       try {
-        // Listen for auth callback events from Tauri
         unlisten = await listenForAuthCallback(async (code: string) => {
           console.log("📥 Received auth callback with code:", code);
 
@@ -124,14 +163,12 @@ export default function App() {
               return;
             }
 
-            // Exchange code for Supabase session
             const { error } = await supabase.auth.exchangeCodeForSession(code);
 
             if (error) {
               console.error("❌ Error exchanging code for session:", error);
             } else {
               console.log("✅ Session exchanged successfully");
-              // Fetch user and subscription after successful login
               await fetchUserAndSubscription();
             }
           } catch (error) {
@@ -147,7 +184,6 @@ export default function App() {
 
     setupAuthListener();
 
-    // Cleanup
     return () => {
       if (unlisten) {
         console.log("🧹 Cleaning up auth listener");
@@ -179,7 +215,7 @@ export default function App() {
     };
   }, []);
 
-  // Display a loading spinner while fetching data
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -192,24 +228,30 @@ export default function App() {
   }
 
   // Show login if no user
-  if (!user) {
-    return <SignInForm />;
-  }
+  // if (!user) {
+  //   return <SignInForm />;
+  // }
 
   // Show subscription page if no active subscription
   if (user && (!subscription || subscription.status !== "active")) {
     return <SubscribePage user={user} />;
   }
 
-  // Show main app if logged in with active subscription
+  // Main app routes
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/shortcuts" element={<ShortcutsPage />} />
+      <Route path="/notes" element={<NotesPage />} />
+    </Routes>
+  );
+}
+
+export default function App() {
   return (
     <HashRouter>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/shortcuts" element={<ShortcutsPage />} />
-        <Route path="/notes" element={<NotesPage />} />
-      </Routes>
+      <AppContent />
     </HashRouter>
   );
 }

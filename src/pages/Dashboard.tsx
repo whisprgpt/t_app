@@ -31,8 +31,13 @@ import { NewFeaturesBanner } from "../components/NewFeaturesBanner";
 import { ResponsiveDialog } from "../components/ResponsiveDialogBox";
 import { AiDetails, WhisperSettings } from "@/types/types";
 // ✨ UPDATED: Import Tauri APIs
-import { getSettings, saveSettings, isMac as getTauriPlatform } from "@/lib/tauri-settings-api";
+import {
+  getSettings,
+  saveSettings,
+  isMac as getTauriPlatform,
+} from "@/lib/tauri-settings-api";
 import { invoke } from "@tauri-apps/api/tauri";
+import { whisprApi } from "@/lib/tauri-whispr-api";
 import { open as openUrl } from "@tauri-apps/api/shell";
 import {
   checkMicrophonePermission,
@@ -87,17 +92,19 @@ export default function Dashboard() {
         const loaded = await getSettings();
         setSettings(loaded);
         setShowBanner(false);
-        
+
         await handlePermissions();
 
         // Get app version
         const appVersion = await invoke<string>("get_app_version_command");
-        
+
         if (isMacPlatform) {
           try {
             const isSigned = await invoke<boolean>("is_app_signed_command");
             setAppVersionTitle(
-              `${isSigned ? "Standard Edition" : "Lockdown Browser Edition"} ${appVersion}`
+              `${
+                isSigned ? "Standard Edition" : "Lockdown Browser Edition"
+              } ${appVersion}`
             );
           } catch {
             setAppVersionTitle(`Standard Edition ${appVersion}`);
@@ -105,7 +112,7 @@ export default function Dashboard() {
         } else {
           setAppVersionTitle(`Windows Standard Edition ${appVersion}`);
         }
-        
+
         console.log("✅ Dashboard data loaded");
       } catch (error) {
         console.error("❌ Error loading settings:", error);
@@ -144,19 +151,23 @@ export default function Dashboard() {
     await saveSettings(updatedSettings);
   };
 
-  const handleClick = usePreventDoubleClick(() => {
+  const handleClick = usePreventDoubleClick(async () => {
     if (!showPermissionsDialog && isMacPlatform && !hasPermissions) {
       setPermissionsDialog(true);
       return;
     }
-    
+
     if (!settings) {
       console.error("Settings not loaded");
       return;
     }
-    
+
     const provider = providerMapping[settings.llm];
-    openUrl(provider.url).catch(console.error);
+    try {
+      await whisprApi.launch(provider.url);
+    } catch (error) {
+      console.error("Failed to launch Whispr mode:", error);
+    }
   });
 
   const handleSignOut = usePreventDoubleClick(async () => {

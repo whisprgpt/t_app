@@ -6,4 +6,5 @@ pub mod auth;
 pub mod settings;
 pub mod shortcuts;
 pub mod window;
+pub mod whispr;
 // pub mod permissions;

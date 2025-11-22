@@ -133,6 +133,9 @@ fn main() {
             commands::window::set_window_focusable_command,
             commands::auth::open_external_url,
             commands::auth::open_checkout_portal,
+            commands::whispr::launch_whispr_mode_command,
+            commands::whispr::navigate_to_dashboard_command,
+            commands::whispr::get_current_route_command,
         ])
         .setup(|app| {
             info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -186,6 +189,8 @@ fn main() {
                 let window_left = window.clone();
                 let window_right = window.clone();
                 let window_hide = window.clone();
+                let app_for_ctrlb = app.handle();
+
 
                 // Register shortcuts with graceful error handling
                 let mut registered = 0;
@@ -262,6 +267,20 @@ fn main() {
                 } else {
                     failed += 1;
                 }
+                
+                if shortcut_manager
+                    .register("Ctrl+B", move || {
+                        info!("⌨️ Ctrl+B pressed");
+                        if let Err(e) = commands::whispr::navigate_to_dashboard_command(app_for_ctrlb.clone()) {
+                            log::error!("Failed to navigate: {}", e);
+                        }
+                    })
+                    .is_ok()
+                {
+                    registered += 1;
+                } else {
+                    failed += 1;
+                }
 
                 if shortcut_manager
                     .register("Ctrl+H", move || {
@@ -279,6 +298,8 @@ fn main() {
                 } else {
                     failed += 1;
                 }
+
+              
 
                 info!(
                     "⌨️  Shortcuts: {} registered, {} failed",

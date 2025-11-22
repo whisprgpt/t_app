@@ -38,7 +38,11 @@ import { KeyCombination, ShortcutCommand } from "@/types/types";
 import { WhisperSettings } from "@/types/types";
 
 // ✨ UPDATED: Import Tauri APIs
-import { getSettings, saveSettings, isMac as getTauriPlatform } from "@/lib/tauri-settings-api";
+import {
+  getSettings,
+  saveSettings,
+  isMac as getTauriPlatform,
+} from "@/lib/tauri-settings-api";
 import { refreshShortcuts } from "@/lib/tauri-shortcuts-api";
 
 // Utility to map key to icon
@@ -834,18 +838,20 @@ export default function ShortcutsPage() {
   // Derive commands from settings.shortcuts
   const commands: ShortcutCommand[] = useMemo(() => {
     if (!settings) return [];
-    return Object.values(settings.shortcuts).map((entry) => ({
-      key: entry.key,
-      title: entry.title || entry.key,
-      description: entry.description || "",
-      icon: iconForKey(entry.key),
-      category: (entry.category || "core") as ShortcutCommand["category"],
-      defaultShortcut: {
-        mac: entry.defaultShortcut.mac,
-        windows: entry.defaultShortcut.windows,
-      },
-      customShortcut: entry.customShortcut,
-    }));
+    return Object.values(settings.shortcuts)
+      .filter((entry) => entry.defaultShortcut) // ← Add this filter
+      .map((entry) => ({
+        key: entry.key,
+        title: entry.title || entry.key,
+        description: entry.description || "",
+        icon: iconForKey(entry.key),
+        category: (entry.category || "core") as ShortcutCommand["category"],
+        defaultShortcut: {
+          mac: entry.defaultShortcut.mac,
+          windows: entry.defaultShortcut.windows,
+        },
+        customShortcut: entry.customShortcut,
+      }));
   }, [settings]);
 
   const groupedCommands = useMemo(() => {
@@ -878,15 +884,15 @@ export default function ShortcutsPage() {
     try {
       setSaving(true);
       console.log("💾 Saving shortcuts...");
-      
+
       const success = await saveSettings(newSettings);
-      
+
       if (success) {
         console.log("✅ Shortcuts saved");
         const reloaded = await getSettings();
         setSettings(reloaded);
         setHasChanges(false);
-        
+
         // Refresh global shortcuts
         console.log("🔄 Refreshing shortcuts...");
         await refreshShortcuts();
